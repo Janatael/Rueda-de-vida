@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rueda de la Vida</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f9f9f9;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .buttons button {
+            padding: 10px 20px;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: 400px;
+        }
+        .theme-list {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+        }
+        .theme-list h2 {
+            margin-top: 0;
+        }
+        .theme-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .theme-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+        .theme-name {
+            flex: 1;
+        }
+        .theme-value {
+            font-weight: bold;
+        }
+        .watermark {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: rgba(0, 0, 0, 0.5);
+            font-size: 14px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Rueda de la Vida</h1>
+        <div class="form-group">
+            <label for="topic">Área:</label>
+            <select id="topic" onchange="resetValue()">
+                <option value="Salud mental y físico">Salud mental y físico</option>
+                <option value="Trabajo y estudio">Trabajo y estudio</option>
+                <option value="Economía Finanzas">Economía Finanzas</option>
+                <option value="Amigos/as">Amigos/as</option>
+                <option value="Familia">Familia</option>
+                <option value="Relación de pareja">Relación de pareja</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="customTopic">Agregar Tema Personalizado:</label>
+            <input type="text" id="customTopic" placeholder="Ingresa un tema personalizado">
+            <button onclick="addCustomTopic()">Agregar Tema</button>
+        </div>
+        <div class="form-group">
+            <label for="value">Nivel (1-10):</label>
+            <input type="number" id="value" min="1" max="10" onkeypress="handleKeyPress(event)">
+        </div>
+        <div class="buttons">
+            <button onclick="updateChart()">Actualizar Gráfica</button>
+            <button onclick="showData()">Ver Datos</button>
+            <button onclick="downloadChart()">Descargar Rueda</button>
+        </div>
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+            <!-- Marca de agua dentro del contenedor de la gráfica -->
+            <div class="watermark">
+                Creado por Janatael López
+            </div>
+        </div>
+
+        <!-- Lista de temas a la derecha -->
+        <div class="theme-list">
+            <h2>Temas</h2>
+            <div id="themeList"></div>
+        </div>
+    </div>
+
+    <script>
+        let data = {
+            "Salud mental y físico": null,
+            "Trabajo y estudio": null,
+            "Economía Finanzas": null,
+            "Amigos/as": null,
+            "Familia": null,
+            "Relación de pareja": null
+        };
+
+        const colors = [
+            'rgba(255, 99, 132, 0.6)',
+            'rgba(54, 162, 235, 0.6)',
+            'rgba(255, 206, 86, 0.6)',
+            'rgba(75, 192, 192, 0.6)',
+            'rgba(153, 102, 255, 0.6)',
+            'rgba(255, 159, 64, 0.6)'
+        ];
+
+        let chart;
+
+        function resetValue() {
+            document.getElementById('value').value = '';
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                updateChart();
+            }
+        }
+
+        function formatTopic(topic) {
+            topic = topic.trim();
+            return topic.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+        }
+
+        function addCustomTopic() {
+            const customTopicInput = document.getElementById('customTopic');
+            const customTopic = formatTopic(customTopicInput.value);
+
+            if (!customTopic) {
+                alert("Por favor, ingresa un tema válido.");
+                return;
+            }
+
+            if (data.hasOwnProperty(customTopic)) {
+                alert("El tema ya existe.");
+                return;
+            }
+
+            data[customTopic] = null;
+
+            const topicSelect = document.getElementById('topic');
+            const option = document.createElement('option');
+            option.value = customTopic;
+            option.text = customTopic;
+            topicSelect.appendChild(option);
+
+            customTopicInput.value = '';
+            alert(`Tema "${customTopic}" agregado correctamente.`);
+            updateThemeList();
+        }
+
+        function updateThemeList() {
+            const themeList = document.getElementById('themeList');
+            themeList.innerHTML = '';
+
+            Object.entries(data).forEach(([key, value], index) => {
+                const themeItem = document.createElement('div');
+                themeItem.className = 'theme-item';
+
+                const themeColor = document.createElement('div');
+                themeColor.className = 'theme-color';
+                themeColor.style.backgroundColor = colors[index % colors.length];
+
+                const themeName = document.createElement('div');
+                themeName.className = 'theme-name';
+                themeName.textContent = key;
+
+                const themeValue = document.createElement('div');
+                themeValue.className = 'theme-value';
+                themeValue.textContent = value !== null ? value : '-';
+
+                themeItem.appendChild(themeColor);
+                themeItem.appendChild(themeName);
+                themeItem.appendChild(themeValue);
+                themeList.appendChild(themeItem);
+            });
+        }
+
+        function updateChart() {
+            const topic = document.getElementById('topic').value;
+            const value = parseInt(document.getElementById('value').value);
+
+            if (value < 1 || value > 10) {
+                alert("Por favor, ingresa un valor entre 1 y 10.");
+                return;
+            }
+
+            data[topic] = value;
+
+            const sortedData = Object.entries(data).filter(([key, value]) => value !== null).sort((a, b) => b[1] - a[1]);
+
+            const datasets = sortedData.map(([key, value], index) => {
+                const levels = Array(10).fill(0);
+                for (let i = 0; i < value; i++) {
+                    levels[i] = 1;
+                }
+                return {
+                    label: key,
+                    data: levels,
+                    backgroundColor: levels.map((level, i) => level ? colors[index % colors.length] : 'rgba(211, 211, 211, 0.6)'),
+                    borderColor: 'rgba(255, 255, 255, 1)',
+                    borderWidth: 1
+                };
+            });
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            const ctx = document.getElementById('myChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'polarArea',
+                data: {
+                    labels: sortedData.map(([key]) => key),
+                    datasets: [{
+                        label: 'Niveles',
+                        data: sortedData.map(([key, value]) => value),
+                        backgroundColor: sortedData.map(([key, value], index) => colors[index % colors.length]),
+                        borderColor: 'rgba(255, 255, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 10,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            enabled: true
+                        }
+                    }
+                }
+            });
+
+            updateThemeList();
+            moveToNextTopic();
+        }
+
+        function moveToNextTopic() {
+            const topicSelect = document.getElementById('topic');
+            const currentIndex = topicSelect.selectedIndex;
+            const nextIndex = (currentIndex + 1) % topicSelect.options.length;
+            topicSelect.selectedIndex = nextIndex;
+            resetValue();
+        }
+
+        function showData() {
+            const filteredData = Object.entries(data).filter(([key, value]) => value !== null);
+            alert("Datos Ingresados:\n" + filteredData.map(([key, value]) => `${key}: ${value}`).join('\n'));
+        }
+
+        function downloadChart() {
+            const chartContainer = document.querySelector('.chart-container');
+            html2canvas(chartContainer, {
+                scale: 3, // Aumenta la calidad de la imagen (HD)
+                logging: true,
+                useCORS: true,
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'rueda-de-la-vida.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        window.onload = () => {
+            updateChart();
+            updateThemeList();
+        };
+    </script>
+</body>
+</html>
